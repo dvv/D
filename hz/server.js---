@@ -1,0 +1,157 @@
+'use strict';
+
+var MW = require('./lib');
+//
+// console.log helper
+//
+var sys = require('util');
+console.log = function(){
+	for (var i = 0, l = arguments.lenght; i < l; ++i) {
+		console.error(sys.inspect(arguments[i], false, 10));
+	}
+};
+
+//
+// flow helpers: Next, All
+//
+require('./lib/flow');
+
+//
+// authentication helper
+//
+function checkCredentials(user, pass, next){
+	var ok = user === 'root' && pass === '123';
+	next(!ok);
+}
+
+//
+// capability getter
+//
+// each method takes context as the first arg, and callback as the last
+//
+function getCapability(uid, next){
+	var caps = {
+		foo: function(ctx, p1, p2, next){
+			next(null, +p1 + +p2);
+		},
+		Foo: {
+			query: function(ctx, query, next){
+				next(null, [1,2,3]);
+			}
+		}
+	};
+	next(null, caps);
+}
+
+//
+// run cluster
+//
+var server = require('stereo')(null, {
+	port: 3000,
+	repl: true,
+	workers: 1,
+	watch: [__filename, 'app', 'lib']
+});
+
+//
+// worker process
+//
+if (server) {
+
+	//
+	// inter-workers message arrives
+	//
+	process.on('message', function(message){
+		console.log(JSON.stringify(message));
+	});
+
+	//
+	// setup the server
+	//
+	require('./lib/request');
+	require('./lib/response');
+	// override error handler
+	// FIXME: move to lib?
+	var Stack = require('stack');
+	Stack.errorHandler = function error(req, res, err){
+		if (err) {
+			console.error('\n' + err.stack + '\n');
+			res.send(err);
+		} else {
+			// 404 = not found
+			res.send(null);
+		}
+	};
+
+	//
+	// middleware
+	//
+	var mw = require('creationix');
+	server.on('request', Stack(
+
+		// parse the body into req.body
+		require('./lib/body')(),
+
+		// log request/response
+		//mw.log(),
+
+		// manage secure signed cookie which holds logged user id
+		require('cookie-sessions')({
+			secret: 'your secret here',
+			session_key: 'sid',
+			//timeout: 24*60*60*1000
+		}),
+
+		// get user capability
+		require('./lib/capability')(getCapability),
+
+		// execute RPC
+		require('./lib/jsonrpc')(),
+
+/*
+		function(req, res, next){
+			res.send(req.body);
+		},
+*/
+
+		// MVC
+		mw.controllers('/', __dirname + '/app'),
+
+		// handle session auth
+		mw.mount('POST', '/auth', require('./lib/auth').session(checkCredentials)),
+
+		/*function(req, res, next){
+			res.send(req.context);//session);
+		},*/
+
+		// serve dynamic stuff under ./public
+		// use to serve chrome page
+		require('./lib/dynamic')({
+			map: {
+				'/': __dirname + '/public/index.html'
+			}
+		}),
+
+		// serve static stuff under ./public
+		require('./lib/static')('/', __dirname + '/public', 'index.html', {
+			//cacheMaxFileSizeToCache: 1024, // set to limit the size of cacheable file
+			//cacheTTL: 1000
+		}),
+
+		// TEST: serve listing
+		require('./lib/auth').basic(checkCredentials),
+		mw.listing('/list', __dirname)
+
+	));
+
+//
+// master process
+//
+} else {
+
+	//
+	// broadcast a message
+	//
+	setTimeout(function(){process.publish({sos: 'to all, all, all'});}, 2000);
+
+}

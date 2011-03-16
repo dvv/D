@@ -1,0 +1,372 @@
+'use strict';
+
+/*
+ *
+ * Copyright(c) 2011 Vladimir Dronnikov <dronnikov@gmail.com>
+ * MIT Licensed
+ *
+*/
+
+var __slice = Array.prototype.slice;
+
+//
+// convert REST to RPC
+//
+// see tests below for explanation
+//
+
+function convertToRPC(method, uri, query, data) {
+
+	//
+	// split to resource path and resource id
+	//
+	var call, id, parts, _i, _ref;
+	_ref = uri.substring(1).split('/').map(function(x) {
+		return decodeURIComponent(x);
+	}), parts = 2 <= _ref.length ? __slice.call(_ref, 0, _i = _ref.length - 1) : (_i = 0, []), id = _ref[_i++];
+	if (parts.length === 0) {
+		parts = [id];
+		id = void 0;
+	}
+
+	//
+	// GET /Foo[?query] --> RPC {method: ['Foo', 'query'], params: [query]}
+	// GET /Foo/ID[?query] --> RPC {method: ['Foo', 'get'], params: [ID]}
+	//
+	if (method === 'GET') {
+		call = {
+			method: 'query',
+			params: [query]
+		};
+		if (id) {
+			call.method = 'get';
+			call.params[0] = id;
+		}
+
+	//
+	// PUT /Foo[?query] {changes} --> RPC {method: ['Foo', 'update'], params: [query, changes]}
+	// PUT /Foo/ID[?query] {changes} --> RPC {method: ['Foo', 'update'], params: [[ID], changes]}
+	// PUT /Foo[/ID][?query] [ids, changes] --> RPC {method: ['Foo', 'update'], params: [ids, changes]}
+	//
+	} else if (method === 'PUT') {
+		call = {
+			method: 'update',
+			params: [query, data]
+		};
+		if (id) {
+			call.params[0] = [id];
+		}
+		if (Array.isArray(data)) {
+			call.params = data;
+		}
+
+	//
+	// POST /Foo {data} --> RPC {method: ['Foo', 'add'], params: [data]}
+	//
+	} else if (method === 'POST') {
+		call = {
+			method: 'add',
+			params: [data]
+		};
+
+	//
+	// DELETE /Foo[?query] --> RPC {method: ['Foo', 'remove'], params: [query]}
+	// DELETE /Foo/ID[?query] --> RPC {method: ['Foo', 'remove'], params: [[ID]]}
+	// DELETE /Foo[/ID][?query] [ids] --> RPC {method: ['Foo', 'remove'], params: [ids]}
+	//
+	} else if (method === 'DELETE') {
+		call = {
+			method: 'remove',
+			params: [query]
+		};
+		if (id) {
+			call.params[0] = [id];
+		}
+		if (Array.isArray(data)) {
+			call.params = [data];
+		}
+
+	//
+	// verb not supported
+	//
+	} else {
+		return;
+	}
+
+	// honor parts[0:-1]
+	if (parts[0] !== '') {
+		call.method = parts.concat(call.method);
+	}
+
+	return call;
+};
+
+//
+// convert REST to RPC middleware
+//
+// depends on req.body
+//
+module.exports = function setup(){
+
+	// setup
+
+	// handler
+	return function (req, res, next){
+		//
+		// URL and method both define RPC method
+		//
+		var data = req.body;
+		//
+		// if body doesn't look like RPC -- convert REST to JSONRPC
+		//
+		if (!(data.jsonrpc && data.hasOwnProperty('method') && data.hasOwnProperty('params'))) {
+			data = convertToRPC(req.method, req.uri.pathname, decodeURI(req.uri), data);
+			data.jsonrpc = '2.0';
+			req.body = data;
+		}
+		next();
+	};
+
+};
+
+//
+// tests
+//
+var assert = require('assert');
+var id = 'I-D';
+var query = 'a=b&select(c)';
+var tests = [
+	[
+		['GET', '/', '', {}], {
+			method: 'query',
+			params: ['']
+		}
+	], [
+		['GET', '/ /	/', '', {}], {
+			method: [' ', '	', 'query'],
+			params: ['']
+		}
+	], [
+		['GET', '/', query, {}], {
+			method: 'query',
+			params: [query]
+		}
+	], [
+		['GET', '/ /	/', query, {}], {
+			method: [' ', '	', 'query'],
+			params: [query]
+		}
+	], [
+		['GET', '/Foo', query, {}], {
+			method: ['Foo', 'query'],
+			params: [query]
+		}
+	], [
+		[
+			'GET', '/Foo', query, {
+				foo: 123
+			}
+		], {
+			method: ['Foo', 'query'],
+			params: [query]
+		}
+	], [
+		['GET', '/Foo', query, [123]], {
+			method: ['Foo', 'query'],
+			params: [query]
+		}
+	], [
+		['GET', "/Foo/" + id, '', {}], {
+			method: ['Foo', 'get'],
+			params: [id]
+		}
+	], [
+		['GET', "/Foo/" + id, '', ''], {
+			method: ['Foo', 'get'],
+			params: [id]
+		}
+	], [
+		['GET', "/Foo/" + id, query, void 0], {
+			method: ['Foo', 'get'],
+			params: [id]
+		}
+	], [
+		['GET', "/Foo/a'/" + id, query, null], {
+			method: ['Foo', "a'", 'get'],
+			params: [id]
+		}
+	], [
+		['DELETE', '/', '', {}], {
+			method: 'remove',
+			params: ['']
+		}
+	], [
+		['DELETE', '/ /	/', '', {}], {
+			method: [' ', '	', 'remove'],
+			params: ['']
+		}
+	], [
+		['DELETE', '/Foo', query, {}], {
+			method: ['Foo', 'remove'],
+			params: [query]
+		}
+	], [
+		[
+			'DELETE', '/Foo', query, {
+				foo: 123
+			}
+		], {
+			method: ['Foo', 'remove'],
+			params: [query]
+		}
+	], [
+		['DELETE', '/Foo', query, [123, 456, null, void 0]], {
+			method: ['Foo', 'remove'],
+			params: [[123, 456, null, void 0]]
+		}
+	], [
+		['DELETE', "/Foo/" + id, '', {}], {
+			method: ['Foo', 'remove'],
+			params: [[id]]
+		}
+	], [
+		['DELETE', "/Foo/" + id, '', ''], {
+			method: ['Foo', 'remove'],
+			params: [[id]]
+		}
+	], [
+		['DELETE', "/Foo/" + id, query, void 0], {
+			method: ['Foo', 'remove'],
+			params: [[id]]
+		}
+	], [
+		['DELETE', "/Foo/a'/" + id, query, null], {
+			method: ['Foo', "a'", 'remove'],
+			params: [[id]]
+		}
+	], [
+		['DELETE', "/Foo/a'/" + id, query, ['q', 'w', 'e/r/t']], {
+			method: ['Foo', "a'", 'remove'],
+			params: [['q', 'w', 'e/r/t']]
+		}
+	], [
+		['PUT', '/', '', {}], {
+			method: 'update',
+			params: ['', {}]
+		}
+	], [
+		['PUT', '/ /	/', '', {}], {
+			method: [' ', '	', 'update'],
+			params: ['', {}]
+		}
+	], [
+		['PUT', '/Foo', query, {}], {
+			method: ['Foo', 'update'],
+			params: [query, {}]
+		}
+	], [
+		[
+			'PUT', '/Foo', query, {
+				foo: 123
+			}
+		], {
+			method: ['Foo', 'update'],
+			params: [
+				query, {
+					foo: 123
+				}
+			]
+		}
+	], [
+		['PUT', '/Foo', query, [123, 456, null, void 0]], {
+			method: ['Foo', 'update'],
+			params: [123, 456, null, void 0]
+		}
+	], [
+		['PUT', "/Foo/" + id, '', {}], {
+			method: ['Foo', 'update'],
+			params: [[id], {}]
+		}
+	], [
+		['PUT', "/Foo/" + id, '', ''], {
+			method: ['Foo', 'update'],
+			params: [[id], '']
+		}
+	], [
+		['PUT', "/Foo/" + id, query, void 0], {
+			method: ['Foo', 'update'],
+			params: [[id], void 0]
+		}
+	], [
+		['PUT', "/Foo/a'/" + id, query, null], {
+			method: ['Foo', "a'", 'update'],
+			params: [[id], null]
+		}
+	], [
+		['PUT', "/Foo/a'/" + id, query, ['q', 'w', 'e/r/t']], {
+			method: ['Foo', "a'", 'update'],
+			params: ['q', 'w', 'e/r/t']
+		}
+	], [
+		['POST', '/', '', {}], {
+			method: 'add',
+			params: [{}]
+		}
+	], [
+		['POST', '/ /	/', '', {}], {
+			method: [' ', '	', 'add'],
+			params: [{}]
+		}
+	], [
+		['POST', '/Foo', query, {}], {
+			method: ['Foo', 'add'],
+			params: [{}]
+		}
+	], [
+		[
+			'POST', '/Foo', query, {
+				foo: 123
+			}
+		], {
+			method: ['Foo', 'add'],
+			params: [
+				{
+					foo: 123
+				}
+			]
+		}
+	], [
+		['POST', '/Foo', query, [123, 456, null, void 0]], {
+			method: ['Foo', 'add'],
+			params: [[123, 456, null, void 0]]
+		}
+	], [
+		['POST', "/Foo/" + id, '', {}], {
+			method: ['Foo', 'add'],
+			params: [{}]
+		}
+	], [
+		['POST', "/Foo/" + id, '', ''], {
+			method: ['Foo', 'add'],
+			params: ['']
+		}
+	], [
+		['POST', "/Foo/" + id, query, void 0], {
+			method: ['Foo', 'add'],
+			params: [void 0]
+		}
+	], [
+		['POST', "/Foo/a'/" + id, query, null], {
+			method: ['Foo', "a'", 'add'],
+			params: [null]
+		}
+	], [
+		['POST', "/Foo/a'/" + id, query, ['q', 'w', 'e/r/t']], {
+			method: ['Foo', "a'", 'add'],
+			params: [['q', 'w', 'e/r/t']]
+		}
+	]
+];
+tests.forEach(function(test) {
+	assert.deepEqual(convertToRPC.apply(null, test[0]), test[1]);
+});
