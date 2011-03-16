@@ -173,11 +173,11 @@ class Database extends events.EventEmitter
 	#
 	# insert new `document` validated by optional `schema`
 	#
-	add: (collection, schema, context, document, callback) ->
+	add: (collection, schema, context, document = {}, callback) ->
 		self = @
-		document ?= {}
 		user = context?.user?.id
 		# assign new primary key unless specified
+		# FIXME: what if id is required?
 		document.id = @idFactory() unless document.id
 		Next self,
 			(err, result, next) ->
@@ -234,9 +234,8 @@ class Database extends events.EventEmitter
 	#
 	# update documents matching `query` using `changes` partially validated by optional `schema`
 	#
-	update: (collection, schema, context, query, changes, callback) ->
+	update: (collection, schema, context, query, changes = {}, callback) ->
 		self = @
-		changes ?= {}
 		user = context?.user?.id
 		# atomize the query
 		query = _.rql(query).toMongo()
@@ -361,7 +360,7 @@ class Database extends events.EventEmitter
 			query: db.query.bind db, entity, schema
 			get: db.get.bind db, entity, schema
 			add: db.add.bind db, entity, schema
-			update: db.update.bind db, entity, schema, 1
+			update: db.update.bind db, entity, schema
 			remove: db.remove.bind db, entity
 		# special methods to support delayed deletion
 		if @attrInactive
@@ -369,13 +368,6 @@ class Database extends events.EventEmitter
 				delete: db.delete.bind db, entity
 				undelete: db.undelete.bind db, entity
 				purge: db.purge.bind db, entity
-
-		process.log 'ENT----', entity
-		for k in ['query', 'get', 'add', 'update', 'remove']
-			process.log k, db[k].length, db[k].bind(db, entity).length
-		for k, v of store
-			process.log k, v.length
-
 		store
 
 module.exports = Database
