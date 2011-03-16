@@ -3,6 +3,12 @@
 var Middleware = require('./lib');
 
 //
+// plugin RQL
+// N.B. this implicitly globalizes documentcloud/underscore as basis for database accessors
+//
+var Db = require('./lib/db');
+
+//
 // authentication helper
 //
 function checkCredentials(user, pass, next){
@@ -68,6 +74,25 @@ if (server) {
 	process.on('message', function(message){
 		console.log(JSON.stringify(message));
 	});
+
+	//
+	// setup the database
+	//
+	Next({},
+		function (err, result, step){
+			this.schema = {
+			};
+			step();
+		},
+		function (err, result, step){
+			new Db(undefined, this.schema, step);
+		},
+		function (err, result, step){
+			new Db(undefined, this.schema, step);
+		}
+	);
+
+
 
 	//
 	// setup the server

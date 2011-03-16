@@ -10,9 +10,12 @@ fetch() {
 	test -d node_modules/$1 || $NMOD $1
 }
 
+#fetch stereo
 fetch cookie-sessions
 fetch formidable
 fetch qs
 fetch stack
 fetch simple-mime
+fetch mongodb
+fetch underscore
 #fetch creationix
