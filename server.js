@@ -23,30 +23,30 @@ function checkCredentials(user, pass, next){
 //
 function getCapability(uid, next){
 	var caps = {
-		foo: function(ctx, p1, p2, next){
-			next(null, +p1 + +p2);
+		foo: function(ctx, next, args){
+			next(null, args);//+args[0] + +args[1]);
 		},
 		// CRUD for /Foo
 		Foo: {
 			// responds to GET /Foo
 			query: function(ctx, query, next){
-				next(null, [query]);
+				next(null, ['query', query]);
 			},
 			// responds to GET /Foo/id
 			get: function(ctx, id, next){
-				next(null, [id]);
+				next(null, ['get', id]);
 			},
 			// responds to PUT /Foo
 			update: function(ctx, query, changes, next){
-				next(null, [query, changes]);
+				next(null, ['update', query, changes]);
 			},
 			// responds to POST /Foo
 			add: function(ctx, data, next){
-				next(null, [data]);
+				next(null, ['add', data]);
 			},
 			// responds to DELETE /Foo
 			remove: function(ctx, query, next){
-				next(null, [query]);
+				next(null, ['remove', query]);
 			}
 		}
 	};
@@ -76,25 +76,6 @@ if (server) {
 	});
 
 	//
-	// setup the database
-	//
-	Next({},
-		function (err, result, step){
-			this.schema = {
-			};
-			step();
-		},
-		function (err, result, step){
-			new Db(undefined, this.schema, step);
-		},
-		function (err, result, step){
-			new Db(undefined, this.schema, step);
-		}
-	);
-
-
-
-	//
 	// setup the server
 	//
 	//
@@ -104,6 +85,32 @@ if (server) {
 
 		// parse the body into req.body
 		Middleware.body(),
+
+		// execute MVC
+		Middleware.resource('/', 'app'),
+
+
+		/*Middleware.mount('/Foo', {
+			get: function(req, res){
+				res.send('GET');
+			},
+			put: function(req, res){
+				res.send('UPDATE');
+			},
+			delete: function(req, res){
+				res.send('REMOVE');
+			},
+			post: function(req, res){
+				res.send('ADD');
+			},
+			options: function(req, res){
+				res.send('OPTIONS');
+			}
+		}),*/
+
+		function(req, res, next){res.send(req.call);},
+		function(req, res, next){res.send('FULLSTOP');},
+		//function(req, res, next){res.send(req.context);},
 
 		// manage secure signed cookie which holds logged user id
 		Middleware.session({
@@ -115,14 +122,12 @@ if (server) {
 		// get user capability
 		Middleware.capability(getCapability),
 
+		//function(req, res, next){res.send(typeof req.context.foo);},
+
 		// execute RPC
 		Middleware.RPC(),
 
-/*
-		function(req, res, next){
-			res.send(req.body);
-		},
-*/
+		//function(req, res, next){res.send(req.body);},
 
 		// handle session auth
 		Middleware.mount('POST', '/auth', Middleware.authCookie(checkCredentials)),
