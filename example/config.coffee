@@ -17,6 +17,7 @@ module.exports =
 		pub:
 			dir: '../public'
 			ttl: 3600
+		watch: ['../lib']
 		stackTrace: true
 
 	security:

@@ -30,23 +30,23 @@ function getCapability(uid, next){
 		Foo: {
 			// responds to GET /Foo
 			query: function(ctx, query, next){
-				next(null, ['query', query]);
+				next(null, ['Query', query]);
 			},
 			// responds to GET /Foo/id
 			get: function(ctx, id, next){
-				next(null, ['get', id]);
+				next(null, ['Get', id]);
 			},
 			// responds to PUT /Foo
 			update: function(ctx, query, changes, next){
-				next(null, ['update', query, changes]);
+				next(null, ['Update', query, changes]);
 			},
 			// responds to POST /Foo
 			add: function(ctx, data, next){
-				next(null, ['add', data]);
+				next(null, ['Add', data]);
 			},
 			// responds to DELETE /Foo
 			remove: function(ctx, query, next){
-				next(null, ['remove', query]);
+				next(null, ['Remove', query]);
 			}
 		}
 	};
@@ -86,30 +86,7 @@ if (server) {
 		// parse the body into req.body
 		Middleware.body(),
 
-		// execute MVC
-		Middleware.resource('/', 'app'),
-
-
-		/*Middleware.mount('/Foo', {
-			get: function(req, res){
-				res.send('GET');
-			},
-			put: function(req, res){
-				res.send('UPDATE');
-			},
-			delete: function(req, res){
-				res.send('REMOVE');
-			},
-			post: function(req, res){
-				res.send('ADD');
-			},
-			options: function(req, res){
-				res.send('OPTIONS');
-			}
-		}),*/
-
-		function(req, res, next){res.send(req.call);},
-		function(req, res, next){res.send('FULLSTOP');},
+		//function(req, res, next){res.send('FULLSTOP');},
 		//function(req, res, next){res.send(req.context);},
 
 		// manage secure signed cookie which holds logged user id
@@ -122,10 +99,10 @@ if (server) {
 		// get user capability
 		Middleware.capability(getCapability),
 
-		//function(req, res, next){res.send(typeof req.context.foo);},
+		// ReST
+		Middleware.rest('/', {jsonrpc: '2.0'}),
 
-		// execute RPC
-		Middleware.RPC(),
+		function(req, res, next){res.send('FULLSTOP');},
 
 		//function(req, res, next){res.send(req.body);},
 

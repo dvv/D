@@ -9,6 +9,8 @@
 
 var __slice = Array.prototype.slice;
 
+var triggerAdd = '_new';
+
 //
 // convert REST to RPC
 //

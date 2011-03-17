@@ -1,0 +1,182 @@
+//
+// thanks creationix/creationix/controller
+//
+
+var Url = require('url'),
+		Fs = require('fs'),
+		Path = require('path');
+
+// ReST resource routing
+module.exports = function setup(root, controllerFolder) {
+
+	// Normalize mount points to always end in /
+	if (root[root.length - 1] !== '/') { root += '/'; }
+	// Normalize controller folder so require understands it
+	controllerFolder = Fs.realpathSync(controllerFolder);
+
+	// Load the controllers at startup
+	var controllers = {};
+	Fs.readdirSync(controllerFolder).forEach(function (name) {
+		var ext = Path.extname(name);
+		if (ext === '.js') {
+			process.log('RESOURCE ' + name);
+			controllers[Path.basename(name, '.js')] = require(Path.join(controllerFolder, name));
+		}
+	});
+
+	// Generate a request handling function	
+	return function (req, res, next) {
+		// parse out pathname if it's not there already (other middleware may have done it already)
+		if (!req.hasOwnProperty('uri')) { req.uri = Url.parse(req.url); }
+
+		// Mount relative to the given root
+		var path = req.uri.pathname;
+		if (path.substr(0, root.length) !== root) { return next(); }
+
+		// Get the requested controller and method
+		var parts = path.substr(root.length).split('/').map(function(p){return decodeURIComponent(p)});
+		if (parts[parts.length - 1] === '') { parts.pop(); } // Trailing slash is noop
+
+		// Find the resource
+		var controller = parts[0];
+		//if (!controllers.hasOwnProperty(controller)) { return next(); }
+		//controller = controllers[controller];
+
+		if (!req.context.hasOwnProperty(controller)) { return next(); }
+		controller = req.context[controller];
+
+		// Find the method
+		var method = req.method;
+		var id = parts[1];
+		var m, p;
+
+		//
+		// query resource
+		//
+		if (method === 'GET') {
+
+			m = 'get';
+			// get by ID
+			if (id && id !== '_new') {
+				p = [id];
+			// query
+			} else {
+				// bulk get via POST X-HTTP-Method-Override: GET
+				if (Array.isArray(req.body)) {
+					p = [req.body];
+				// query by RQL
+				} else {
+					m = 'query';
+					p = [req.uri.search];
+				}
+			}
+
+		//
+		// create new / update resource
+		//
+		} else if (method === 'PUT') {
+
+			m = 'update';
+			if (id) {
+				// add new
+				if (id === '_new') {
+					m = 'add';
+					p = [req.body];
+				// update by ID
+				} else {
+					p = [id, req.body];
+				}
+			} else {
+				// bulk update via POST X-HTTP-Method-Override: PUT
+				if (Array.isArray(req.body) && Array.isArray(req.body[0])) {
+					p = [req.body[0], req.body[1]];
+				// update by RQL
+				} else {
+					p = [req.uri.search, req.body];
+				}
+			}
+
+		//
+		// remove resource
+		//
+		} else if (method === 'DELETE') {
+
+			m = 'remove';
+			if (id && id !== '_new') {
+				p = [id];
+			} else {
+				// bulk remove via POST X-HTTP-Method-Override: DELETE
+				if (Array.isArray(req.body)) {
+					p = [req.body];
+				// remove by RQL
+				} else if (req.uri.search) {
+					p = [req.uri.search];
+				// won't remove w/o conditions
+				} else {
+					res.send(SyntaxError('Specify conditions'));
+				}
+			}
+
+		//
+		// arbitrary RPC to resource
+		//
+		} else if (method === 'POST') {
+
+			// ??? add ???
+
+		//
+		// get capabilities of resource
+		//
+		} else if (method === 'OPTIONS') {
+
+			// ???
+
+		//
+		// unsupported verb
+		//
+		} else {
+		}
+
+		//return res.send([m, p]);
+
+		//
+		// find handler in req.context
+		//
+		//req.context[entity][m].apply(null, [req.context].concat(p).concat(function(err, result){
+		//	process.log('GET', arguments);
+		//}));
+
+		if (!controller.hasOwnProperty(m)) { return res.send(405); }
+
+		// Call it!
+		var args = [req.context];
+		args.push.apply(args, p);
+		args.push(next);
+		//controller[m].apply(controller, args);
+		//controller[m].apply(null, args);
+
+		Next({},
+			function(err, result, step){
+				var args = [this];
+				args.push.apply(args, p);
+				args.push(step);
+				controller[m].apply(null, args);
+			},
+			function(err, result, step){
+				res.send([err, result]);
+			}
+		);
+
+		return;
+		controller[method].call(null, req.context, function(err, result){
+			if (err) {
+				res.send(err);
+			} else if (result !== undefined) {
+				res.send(result);
+			} else {
+				next();
+			}
+		}, parts, req.uri.search);
+	};
+
+};

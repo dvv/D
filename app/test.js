@@ -1,19 +1,10 @@
 'use strict';
 
-module.exports = {
+function O(obj){
+	//O.prototype.__proto__ = 
+	obj.remove = function(db, entity){
+		db[entity].remove(obj.id);
+	}
+}
 
-	index: function(req, res, next, id){
-		res.send([id !== undefined ? 'get' : 'query', id]);
-	},
-
-	index1: function(ctx, next, args){
-		//next(SyntaxError(JSON.stringify([{p: 1}])), [this, args]);
-		next(null, [ctx, args]);
-	},
-
-	qqq: function(ctx, next, args){
-		//next(SyntaxError(JSON.stringify([{p: 1}])), [this, args]);
-		next(null, [ctx, args]);
-	},
-
-};
+var obj = {};

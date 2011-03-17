@@ -3,6 +3,7 @@
 ###
  *
  * Simple database
+ *
  * Copyright(c) 2011 Vladimir Dronnikov <dronnikov@gmail.com>
  * MIT Licensed
  *
@@ -32,14 +33,14 @@ class Database extends events.EventEmitter
 		# N.B. it allows for 3 additional methods: delete/undelete/purge
 		@attrInactive = options.attrInactive #'_deleted'
 		# support cache
-		@cached = options.cached isnt false
+		@cached = false #options.cached isnt false
 		# DB connection
 		@db = new mongo.Db name or 'test', new mongo.Server(host or '127.0.0.1', port or 27017) #, native_parser: true
 		# register schema
 		@open definitions, callback if definitions
 
 	###########
-	# N.B. all methods should return undefined, so to prevent leak of private info
+	# N.B. all methods should return undefined, to prevent leak of private info
 	###########
 
 	#
@@ -178,7 +179,7 @@ class Database extends events.EventEmitter
 		user = context?.user?.id
 		# assign new primary key unless specified
 		# FIXME: what if id is required?
-		document.id = @idFactory() unless document.id
+		#document.id = @idFactory() unless document.id
 		Next self,
 			(err, result, next) ->
 				#console.error 'BEFOREADD', document, schema

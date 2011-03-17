@@ -60,14 +60,16 @@ if server
 					session_key: 'sid'
 					#timeout: 24*60*60*1000
 
+				# handle session auth
+				Middleware.mount 'POST', '/auth', Middleware.authCookie app.checkCredentials
+
 				# get user capability
 				Middleware.capability app.getCapability
 
 				# execute RPC
-				Middleware.RPC()
-
-				# handle session auth
-				Middleware.mount 'POST', '/auth', Middleware.authCookie app.checkCredentials
+				Middleware.rest '/',
+					jsonrpc: '2.0'
+				#Middleware.RPC()
 
 				# serve dynamic stuff under ./public
 				# use to serve chrome page
