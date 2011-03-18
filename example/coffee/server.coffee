@@ -41,8 +41,8 @@ if server
 		#
 		(err, exposed, next) ->
 
-			model = exposed
-			require('./app') config, model, next
+			@model = exposed
+			require('./app') config, @model, next
 
 		#
 		# setup middleware
@@ -66,9 +66,14 @@ if server
 				# get user capability
 				Middleware.capability app.getCapability
 
+				Middleware.mount '/profile',
+					query: @model.getProfile
+					update: @model.setProfile
+
 				# execute RPC
 				Middleware.rest '/',
 					jsonrpc: '2.0'
+					putNew: '_new'
 				#Middleware.RPC()
 
 				# serve dynamic stuff under ./public

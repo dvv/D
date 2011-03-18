@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>Simple Test Suite</title>
-  <link rel="stylesheet" href="https://github.com/jquery/qunit/raw/master/qunit/qunit.css" type="text/css" media="screen" />
+  <!--link rel="stylesheet" href="https://github.com/jquery/qunit/raw/master/qunit/qunit.css" type="text/css" media="screen" />
   <script type="text/javascript" src="http://code.jquery.com/jquery-1.5.1.min.js"></script>
   <script type="text/javascript" src="https://github.com/jquery/qunit/raw/master/qunit/qunit.js"></script>
   <script type="text/javascript" src="https://github.com/dvv/underscore/raw/master/underscore.js"></script>
@@ -12,13 +12,24 @@
   <script type="text/javascript" src="js/validate.js"></script>
   <script type="text/javascript" src="facet.js"></script>
   <script type="text/javascript" src="schema.js"></script>
-  <script type="text/javascript" src="rql.js"></script>
+  <script type="text/javascript" src="rql.js"></script-->
   <!--script type="text/javascript" src="http://www.geonames.org/postalCodeLookupJSON?postalcode=17000&callback=testSchema"></script-->
-  <script>
+  <!--script>
   var chrome='${123}';
   var cid = "$${'<foo></foo>'}";
   var cid1 = "${'<foo></foo>'}";
-  </script>
+  </script-->
+
+<script type="text/javascript" src="nowjs/now.js"></script>
+<script type="text/javascript">
+	now.ready(function(){
+		//alert(now.msg);
+		now.func1('Ray', function(result){
+			alert(result);
+		},function(){});
+	});
+</script>
+
 </head>
 <body>
   <h1 id="qunit-header">Simple Test Suite</h1>

@@ -157,11 +157,11 @@ module.exports = (config, model, callback) ->
 		# profile getter/setter
 		#
 		# FIXME: needed?
-		getProfile: (context, next) ->
+		getProfile: (context, query, next) ->
 			#console.log 'GETPROFILE for', context.user?.id
 			User._get model.UserSelf.schema, context, context.user?.id, next
 			return
-		setProfile: (context, changes, next) ->
+		setProfile: (context, query, changes, next) ->
 			User._update model.UserSelf.schema, context, [context.user?.id], changes, (err, result) ->
 				return next? err if err
 				model.User.getProfile context, next
@@ -374,11 +374,11 @@ module.exports = (config, model, callback) ->
 
 	# user -- authenticated authority
 	FacetForUser = _.freeze _.extend {}, FacetForGuest,
-		#Profile:
-		#	get: model.User.getProfile
-		#	set: model.User.setProfile
-		getProfile: model.User.getProfile
-		setProfile: model.User.setProfile
+		profile:
+			query: model.User.getProfile
+			update: model.User.setProfile
+		#getProfile: model.User.getProfile
+		#setProfile: model.User.setProfile
 
 	# root -- hardcoded DB owner
 	FacetForRoot = _.freeze _.extend {}, FacetForUser,

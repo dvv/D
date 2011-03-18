@@ -20,3 +20,5 @@ fetch simple-mime
 fetch mongodb
 fetch underscore
 #fetch creationix
+fetch node-proxy
+fetch now
