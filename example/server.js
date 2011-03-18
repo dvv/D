@@ -147,7 +147,7 @@ if (server) {
 				}),
 
 				// serve static stuff under ./public
-				Middleware.static('/', __dirname + '/public', false/*'index.html'*/, {
+				Middleware.static('/', __dirname + '/public', null, {
 					//cacheMaxFileSizeToCache: 1024, // set to limit the size of cacheable file
 				})
 
