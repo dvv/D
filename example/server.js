@@ -135,7 +135,7 @@ if (server) {
 				// ReST
 				Middleware.rest('/', {
 					jsonrpc: '2.0',
-					putNew: '_new'
+					putNew: '_new' // PUT /Foo/_new {data} creates new document
 				}),
 
 				// serve dynamic stuff under ./public
