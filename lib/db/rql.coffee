@@ -48,6 +48,8 @@ class Query
 					term.name = 'eq'
 					term.args = [k, v]
 				return
+		else
+			throw new URIError 'Illegal query' unless typeof query is 'string'
 
 		query = query.substring(1) if query.charAt(0) is '?'
 		if query.indexOf('/') >= 0 # performance guard

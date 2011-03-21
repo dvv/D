@@ -1,17 +1,10 @@
 <html>
 <head>
-<script type="text/javascript" src="dnode.js"></script>
-<script type="text/javascript">
-window.onload = function(){
-	DNode.connect(3000, function(remote){
-		remote.authenticate('root', '123', function(context){
-			console.log(context);
-		});
-	});
-};
+<script src="dnode.js"></script>
+<script data-main="scripts/main" src="scripts/require.js"></script>
+<script>
 </script>
 </head>
 <body>
-The cat says <span id="says">?</span>.
 </body>
 </html>
