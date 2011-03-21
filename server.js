@@ -49,7 +49,9 @@ function getCapability(uid, next){
 				next(null, ['Remove', query]);
 			}
 		},
-		auth1: {
+		auth: function(ctx, params, next){
+			process.log('CALL', arguments);
+			next(null, params.foo);
 		},
 		profile: {
 			query: function(ctx, query, next){
@@ -79,7 +81,11 @@ var server = require('stereo')(null, {
 	port: 3000,
 	repl: true,
 	workers: 1,
-	watch: [__filename, 'app', 'lib', 'public']
+	watch: [__filename, 'app', 'lib', 'public'],
+	ssl111: {
+		key: 'key.pem',
+		cert: 'cert.pem'
+	}
 });
 
 //
@@ -129,18 +135,28 @@ if (server) {
 		}),
 
 		// serve static stuff under ./public
-		Middleware.static('/', __dirname + '/public', 'index.html', {
+		Middleware.static('/', __dirname + '/public', null, {
 			//cacheMaxFileSizeToCache: 1024, // set to limit the size of cacheable file
 		})
 
 	));
 
 	// websocket
-	/*var everyone = require('now').initialize(server);
-	everyone.now.msg = 'Hello From Websocket World!';
-	everyone.now.func1 = function(arg1, callback){
-		callback('Hello From ' + arg1);
-	};*/
+	var everyone = require('now').initialize(server);
+	//everyone.now.msg = 'Hello From Websocket World!';
+	everyone.now.func0 = function(callback){
+		callback('Hello!');
+	};
+	everyone.now.auth = function(uid, password, callback){
+		var client = this.client.now;
+		checkCredentials(uid, password, function(err, result){
+			if (!err) {
+				client.secured = function(){return 'aaa';}
+			}
+			callback(!err);
+		});
+	};
+	everyone.now.rpc = require('./lib/rpc')(getCapability, true);
 
 //
 // master process

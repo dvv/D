@@ -1,0 +1,21 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Simple Test Suite</title>
+</head>
+<body>
+	<b>Multiple File Upload:</b><br/><br/>
+	<form action="/upload" enctype="multipart/form-data" method="post">
+		<input type="text" name="title"><br>
+		<input type="file" name="upload" multiple="multiple"><br>
+		<input type="submit" value="Upload">
+	</form><br/>
+	<b>Simple Post:</b><br/><br/>
+	<form action="/post" method="post">
+		<input type="text" name="demofield1"><br>
+		<input type="text" name="demofield2"><br>
+		<input type="submit" value="Submit">
+	</form>
+</body>
+</html>
