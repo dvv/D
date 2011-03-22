@@ -13,6 +13,7 @@ var Middleware = require('../lib');
 // N.B. this implicitly globalizes documentcloud/underscore as basis for database accessors
 //
 var Db = require('../lib/db');
+_.traverse = require('traverse');
 
 //
 // config
@@ -116,32 +117,56 @@ if (server) {
 				//connection.on('end', function(){
 				//	process.log('User ', user, ' disconnected');
 				//});
+				var remote = this;
 				//
 				// given user credentials, return user context
 				//
-				this.authenticate = function(uid, password, next){
+				remote.authenticate = function(uid, password, next){
 					Next({},
 						function(err, hz, step){
-							app.getCapability(uid, function(err, context){
-								// FIXME: check creds!
+							app.checkCredentials(uid, password, function(err, context){
+								// strip secrets from user
+								if (!err) {
+									var user = context.user;
+									context.user = {
+										id: user.id,
+										email: user.email,
+										type: user.type
+									};
+									remote.user = context.user;
+									delete context.user;
+								}
 								step(err, context);
 							});
 						},
 						function(err, context, step){
-							context = context || {};
-							//process.log('CTX: ', context);
-							this.quote = function(cb){
+							// bind handlers to the context
+							context = _.traverse(context).map(function(f){
+								if (typeof f === 'function' && f.bind) {
+									return f.bind(null, context);
+								} else {
+									return f;
+								}
+							});
+							/*
+							// test for calling browser func
+							remote.quote = function(cb){
 								client.notify('uuu/ooo', function(){});
 								cb(Math.random());
 							};
-							this.rql = function(arg, cb){
+							//
+							remote.rql = function(arg, cb){
 								process.log('ARG: ', JSON.stringify(arg));
 								cb(arg);
-							}
-							extend(this, context);
-							next(this);
+							};*/
+							// expose capabilities
+							remote.caps = context;
+							next(remote);
 						}
 					);
+				};
+				remote.broadcast = function(msg, next){
+					next();
 				};
 			}).listen(server);
 

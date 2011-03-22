@@ -3,17 +3,21 @@
 module.exports = {
 	server: {
 		port: 3000,
+		ssl1: {
+			key: 'key.pem',
+			cert: 'cert.pem'
+		},
 		shutdownTimeout: 10000,
 		repl: true,
 		pub: {
 			dir: '../public',
 			ttl: 3600
 		},
-		watch: [__filename, '../lib', 'public'],
+		watch: ['.', '../lib'],
 		stackTrace: true
 	},
 	security: {
-		bypass: true,
+		//bypass: true,
 		secret: 'change-me-on-production-server',
 		root: {
 			id: 'root',

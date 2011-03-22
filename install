@@ -12,7 +12,7 @@ fetch() {
 
 #fetch stereo
 fetch cookie-sessions
-#fetch formidable
+fetch formidable
 fetch formaline
 fetch qs
 fetch stack

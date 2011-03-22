@@ -156,6 +156,10 @@ module.exports = function(config, model, callback) {
 		purge: function(context, query, next) {
 			User.purge(context, _.rql(query).ne('id', context.user.id), next);
 		},
+
+		//
+		// verify provided credentials, return the user context
+		//
 		verify: function(uid, password, next) {
 			Next(null,
 			function(err, result, step) {
@@ -173,7 +177,7 @@ module.exports = function(config, model, callback) {
 					if (!user.password || user.blocked) {
 						next('Invalid user');
 					} else if (user.password === encryptPassword(password, user.salt)) {
-						next();
+						next(null, context);
 					} else {
 						next('Invalid user');
 					}
@@ -221,9 +225,7 @@ module.exports = function(config, model, callback) {
 					return facets[x];
 				})));
 				// set context.user
-				Object.defineProperty(context, 'user', {
-					value: user
-				});
+				context.user = user;
 				next(null, context);
 			});
 		}
@@ -370,31 +372,6 @@ module.exports = function(config, model, callback) {
 
 	// public
 	FacetForGuest = _.freeze(_.extend({}, {
-		getRoot: function(context, query, next) {
-			var k, s, user, v;
-			s = {};
-			for (k in context) {
-				if (!__hasProp.call(context, k)) continue;
-				v = context[k];
-				if (typeof v === 'function') {
-					s[k] = true;
-				} else if (v.schema) {
-					s[k] = {
-						schema: v.schema,
-						methods: _.functions(v)
-					};
-				}
-			}
-			user = context.user;
-			next(null, {
-				user: {
-					id: user.id,
-					email: user.email,
-					type: user.type
-				},
-				schema: s
-			});
-		}
 	}));
 
 	// authenticated user
