@@ -65,16 +65,24 @@ if (server) {
 			server.on('request', Middleware(
 
 				// parse the body into req.body
-				Middleware.body(),
+				Middleware.body({
+					/*onUploadProgress: function(file, state){
+						//if (!(file.lastModifiedDate.getSeconds() % 2)) {
+						if (state !== undefined || !((Date.now()/1000) % 2)) {
+							process.log('PROGRESS', file);
+						}
+					}*/
+				}),
+
+				function(req, res, next){
+					process.log('COOK', req.headers.cookie);
+					next();
+				},
 
 				// fallback if DNode down?
 
 				// manage secure signed cookie which holds logged user id
-				Middleware.session({
-					secret: 'your secret here',
-					session_key: 'sid',
-					//timeout: 24*60*60*1000
-				}),
+				Middleware.session(config.security.session),
 				// handle session auth
 				Middleware.mount('POST', '/auth', Middleware.authCookie(app.checkCredentials)),
 
@@ -111,35 +119,65 @@ if (server) {
 			//
 			// setup DNode
 			//
+			// TODO: https://github.com/substack/dnode-stack
+			//
 			var DNode = require('dnode');
 			DNode(function(client, connection){
+
+				//process.log('CONN', connection.stream.socketio.request);
+				var cookie = connection.stream.socketio.request &&
+				Middleware.session.readSession(
+					config.security.session.key || 'sid',
+					config.security.session.secret,
+					config.security.session.timeout || 24*60*60*1000,
+					connection.stream.socketio.request
+				);
+				process.log('COOOKIE', cookie);
+
+				connection.on('request', function(req){
+					process.log('REQ', req);
+					if (req.session) {
+						client.notify('REQ', function(){});
+					}
+				});
+
 				// TODO: reconnect
 				//connection.on('end', function(){
 				//	process.log('User ', user, ' disconnected');
 				//});
 				var remote = this;
 				//
+				// cached user
+				//
+				var user = {};
+				//
 				// given user credentials, return user context
 				//
 				remote.authenticate = function(uid, password, next){
 					Next({},
 						function(err, hz, step){
-							app.checkCredentials(uid, password, function(err, context){
-								// strip secrets from user
-								if (!err) {
-									var user = context.user;
-									context.user = {
-										id: user.id,
-										email: user.email,
-										type: user.type
-									};
-									remote.user = context.user;
-									delete context.user;
-								}
-								step(err, context);
-							});
+							app.checkCredentials(uid, password, step);
 						},
 						function(err, context, step){
+							// strip secrets from user
+							if (err) {
+								user = {};
+							} else {
+								user = context.user;
+								context.user = {
+									id: user.id,
+									email: user.email,
+									type: user.type
+								};
+								remote.user = context.user;
+								delete context.user;
+								// set vanilla session
+								//process.log('CONNN', connection.stream);//.socketio.request);
+							}
+							step(err, context);
+						},
+						function(err, context, step){
+							//process.log('CTX', err, context);
 							// bind handlers to the context
 							context = _.traverse(context).map(function(f){
 								if (typeof f === 'function' && f.bind) {
@@ -165,6 +203,34 @@ if (server) {
 						}
 					);
 				};
+
+				var tmpl = Middleware.templated({
+					map: {
+						'admin': __dirname + '/templates/admin.html',
+						'user': __dirname + '/templates/user.html'
+					}
+				});
+				remote.getViews = function(arg, next){
+					// fake request, response, and next layer
+					var req = {
+						method: 'GET',
+						uri: {
+							pathname: arg
+						},
+						context: {
+							user: user
+						}
+					};
+					var res = {
+						send: function(response){
+							next(response);
+						}
+					};
+					tmpl(req, res, function(){
+						next();
+					});
+				};
+
 				remote.broadcast = function(msg, next){
 					next();
 				};

@@ -13,12 +13,16 @@ module.exports = {
 			dir: '../public',
 			ttl: 3600
 		},
-		watch: ['.', '../lib'],
+		watch: ['*.js', 'public', '../lib'],
 		stackTrace: true
 	},
 	security: {
 		//bypass: true,
-		secret: 'change-me-on-production-server',
+		session: {
+			key: 'sid',
+			secret: 'your secret here',
+			timeout: 24*60*60*1000
+		},
 		root: {
 			id: 'root',
 			email: 'place-admin@here.com',

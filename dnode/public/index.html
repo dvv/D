@@ -1,11 +1,26 @@
+<!DOCTYPE HTML>
 <html>
 <head>
-<script src="scripts/modernizr-1.7.min.js"></script>
-<script src="dnode.js"></script>
-<script data-main="scripts/main" src="scripts/require.js"></script>
-<script>
-</script>
+	<meta charset="utf-8">
+	<title>Simple Test Suite</title>
+	<script src="scripts/modernizr-1.7.min.js"></script>
+	<script src="dnode.js"></script>
+	<script data-main="scripts/main" src="scripts/require.js"></script>
+	<script>
+	</script>
 </head>
 <body>
+	<b>Multiple File Upload:</b><br/><br/>
+	<form action1="/upload" enctype="multipart/form-data" method="post">
+		<input type="text" name="title"><br>
+		<input type="file" name="upload" multiple="multiple"><br>
+		<input type="submit" value="Upload">
+	</form><br/>
+	<b>Simple Post:</b><br/><br/>
+	<form action1="/post" method="post">
+		<input type="text" name="demofield1"><br>
+		<input type="text" name="demofield2"><br>
+		<input type="submit" value="Submit">
+	</form>
 </body>
 </html>

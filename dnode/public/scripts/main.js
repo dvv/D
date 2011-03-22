@@ -18,7 +18,7 @@ require(['jquery', 'scripts/underscore.js', 'scripts/backbone.js', 'scripts/data
 		}, function(remote){
 			// obtain the user context
 			remote.authenticate('root', '123', function(context){
-				//console.log(window.ctx = Object.freeze(context));
+				console.log(window.ctx = Object.freeze(context));
 				//$(document.body).append('<p>'+$('html').attr('class')+'</p>');
 				//$(document.body).append('<p>'+JSON.stringify(context.caps)+'</p>');
 				/*Traverse(context.caps).forEach(function(f){
