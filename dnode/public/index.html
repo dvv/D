@@ -10,17 +10,49 @@
 	</script>
 </head>
 <body>
+	<div id="user"></div>
+	<div id="menu"></div>
 	<b>Multiple File Upload:</b><br/><br/>
 	<form action1="/upload" enctype="multipart/form-data" method="post">
 		<input type="text" name="title"><br>
 		<input type="file" name="upload" multiple="multiple"><br>
 		<input type="submit" value="Upload">
 	</form><br/>
-	<b>Simple Post:</b><br/><br/>
-	<form action1="/post" method="post">
-		<input type="text" name="demofield1"><br>
-		<input type="text" name="demofield2"><br>
-		<input type="submit" value="Submit">
-	</form>
+
+<!-- templates bundle -->
+{{if(user.type==='root'){}}
+<!-- root templates --------->
+AAA
+BBB
+<!-- end of root templates -->
+{{}else if(user.type==='admin'){}}
+<!-- admin templates -->
+{{}else if(user.type==='affiliate'){}}
+<!-- affiliate templates -->
+{{}else if(user.type==='user'){}}
+<!-- user templates -->
+{{}else{}}
+<!-- guest templates ------------------------>
+DDD
+EEE
+<!-- end of guest templates ----------------->
+{{}}}
+<!-- public templates ------------------------>
+<script id="tmpl-user" type="text/x-jquery-tmpl">
+<%if (obj.id) {%>
+	<a href="auth">Logout</a><br/><br/>
+	<b>User: <%=obj.id%></b><br/><br/>
+<%} else {%>
+	<a href="auth">Login</a><br/><br/>
+<%}%>
+</script>
+<script id="tmpl-menu" type="text/x-jquery-tmpl">
+<%_.each(obj, function(x, entity){%>
+	<a href="#list/<%=entity%>"><%=entity%></a>
+<%});%>
+</script>
+<!-- end of public templates ----------------->
+
+<footer id="footer"></footer>
 </body>
 </html>

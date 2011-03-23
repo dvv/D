@@ -19,7 +19,7 @@ module.exports = {
 	security: {
 		//bypass: true,
 		session: {
-			key: 'sid',
+			session_key: 'sid',
 			secret: 'your secret here',
 			timeout: 24*60*60*1000
 		},

@@ -74,10 +74,15 @@ if (server) {
 					}*/
 				}),
 
+				function(req, res, next){
+					process.log('COOK', req.headers.cookie);
+					next();
+				},
+
 				// fallback if DNode down?
 
 				// manage secure signed cookie which holds logged user id
-				Middleware.session(config.security.session, '/auth'),
+				Middleware.session(config.security.session),
 				// handle session auth
 				Middleware.mount('POST', '/auth', Middleware.authCookie(app.checkCredentials)),
 
@@ -92,16 +97,14 @@ if (server) {
 
 				// serve dynamic stuff under ./public
 				// use to serve chrome page
-				// FIXME: GET /index.html reveals templates!
-				Middleware.templated({
+				/*Middleware.templated({
 					map: {
-						'/': __dirname + '/public/index.html',
-						'/auth': __dirname + '/templates/auth.html'
+						'/': __dirname + '/public/index.html'
 					}
-				}),
+				}),*/
 
 				// serve static stuff under ./public
-				Middleware.static('/', __dirname + '/public', null, {
+				Middleware.static('/', __dirname + '/public', 'index.html', {
 					//cacheMaxFileSizeToCache: 1024, // set to limit the size of cacheable file
 				}),
 
@@ -121,13 +124,7 @@ if (server) {
 			var DNode = require('dnode');
 			DNode(function(client, connection){
 
-				// FIXME: vanilla exceptions due to _.rql()?
-				connection.on('localError', function (err){
-					//console.log('#############################' + err, arguments);
-				});
-
 				//process.log('CONN', connection.stream.socketio.request);
-				// get user id
 				var cookie = connection.stream.socketio.request &&
 				Middleware.session.readSession(
 					config.security.session.session_key || 'sid',
@@ -135,34 +132,52 @@ if (server) {
 					config.security.session.timeout || 24*60*60*1000,
 					connection.stream.socketio.request
 				);
-				//process.log('COOOKIE', cookie);
+				process.log('COOOKIE', cookie);
 
+				connection.on('request', function(req){
+					process.log('REQ', req);
+					if (req.session) {
+						client.notify('REQ', function(){});
+					}
+				});
 
+				// TODO: reconnect
+				//connection.on('end', function(){
+				//	process.log('User ', user, ' disconnected');
+				//});
+				var remote = this;
+				//
+				// cached user
+				//
+				var user = {};
 				//
 				// given user credentials, return user context
 				//
-				this.user = this.caps = {};
-				//this.getCaps = function(next){
-					Next(this,
+				remote.authenticate = function(uid, password, next){
+					Next({},
 						function(err, hz, step){
-							app.getCapability(cookie && cookie.uid, step);
+							app.checkCredentials(uid, password, step);
 						},
 						function(err, context, step){
 							// strip secrets from user
 							if (err) {
+								user = {};
 							} else {
-								var user = context.user;
-								delete context.user;
-								this.user = {
+								user = context.user;
+								context.user = {
 									id: user.id,
 									email: user.email,
 									type: user.type
 								};
+								remote.user = context.user;
+								delete context.user;
+								// set vanilla session
+								//process.log('CONNN', connection.stream);//.socketio.request);
 							}
 							step(err, context);
 						},
 						function(err, context, step){
-							//process.log('CTX', err && err.stack, context);
+							//process.log('CTX', err, context);
 							// bind handlers to the context
 							context = _.traverse(context).map(function(f){
 								if (typeof f === 'function' && f.bind) {
@@ -171,20 +186,54 @@ if (server) {
 									return f;
 								}
 							});
+							/*
+							// test for calling browser func
+							remote.quote = function(cb){
+								client.notify('uuu/ooo', function(){});
+								cb(Math.random());
+							};
+							//
+							remote.rql = function(arg, cb){
+								process.log('ARG: ', JSON.stringify(arg));
+								cb(arg);
+							};*/
 							// expose capabilities
-							this.caps = context;
-							//process.log('CTX!', context);
-							//next(this);
+							remote.caps = context;
+							next(remote);
 						}
 					);
-				//};
-
-				//this.getCaps = function(next){next(this);};
-
-				this.broadcast = function(msg, next){
-					next();
 				};
 
+				var tmpl = Middleware.templated({
+					map: {
+						'admin': __dirname + '/templates/admin.html',
+						'user': __dirname + '/templates/user.html'
+					}
+				});
+				remote.getViews = function(arg, next){
+					// fake request, response, and next layer
+					var req = {
+						method: 'GET',
+						uri: {
+							pathname: arg
+						},
+						context: {
+							user: user
+						}
+					};
+					var res = {
+						send: function(response){
+							next(response);
+						}
+					};
+					tmpl(req, res, function(){
+						next();
+					});
+				};
+
+				remote.broadcast = function(msg, next){
+					next();
+				};
 			}).listen(server);
 
 		}
