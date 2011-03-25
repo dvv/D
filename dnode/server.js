@@ -51,6 +51,10 @@ if (server) {
 		// define application
 		//
 		function(err, exposed, next){
+			if (err) {
+				process.log(err.stack || err.message || err);
+				process.exit(1);
+			}
 			this.model = exposed;
 			require('./app')(config, this.model, next);
 		},
@@ -58,6 +62,10 @@ if (server) {
 		// define ???
 		//
 		function(err, app, next){
+			if (err) {
+				process.log(err.stack || err.message || err);
+				process.exit(1);
+			}
 
 			//
 			// setup middleware
@@ -74,20 +82,18 @@ if (server) {
 					}*/
 				}),
 
-				// fallback if DNode down?
-
 				// manage secure signed cookie which holds logged user id
-				Middleware.session(config.security.session, '/auth'),
+				Middleware.session(config.security.session, config.security.url),
 				// handle session auth
-				Middleware.mount('POST', '/auth', Middleware.authCookie(app.checkCredentials)),
+				Middleware.mount('POST', config.security.url, Middleware.authCookie(app.checkCredentials)),
 
 				// get user capability
 				Middleware.capability(app.getCapability),
 
 				// ReST
-				Middleware.rest('/', {
+				Middleware.rest('/rest', {
 					jsonrpc: '2.0',
-					putNew: '_new' // PUT /Foo/_new {data} creates new document
+					//putNew: '_new' // PUT /Foo/_new {data} creates new document
 				}),
 
 				// serve dynamic stuff under ./public
@@ -95,7 +101,7 @@ if (server) {
 				// FIXME: GET /index.html reveals templates!
 				Middleware.templated({
 					map: {
-						'/': __dirname + '/public/index.html',
+						'/': __dirname + '/templates/index.html',
 						'/auth': __dirname + '/templates/auth.html'
 					}
 				}),

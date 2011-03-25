@@ -13,7 +13,7 @@ module.exports = {
 			dir: '../public',
 			ttl: 3600
 		},
-		watch: ['*.js', 'public', '../lib'],
+		watch: ['*.js', 'public', 'templates', '../lib'],
 		stackTrace: true
 	},
 	security: {
@@ -23,11 +23,11 @@ module.exports = {
 			secret: 'your secret here',
 			timeout: 24*60*60*1000
 		},
+		url: '/auth',
 		root: {
 			id: 'root',
 			email: 'place-admin@here.com',
 			password: '123',
-			secret: '321',
 			type: 'root'
 		}
 	},
