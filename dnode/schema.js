@@ -26,7 +26,9 @@ cr = function(attr) {
 		}
 	});
 };
+
 schema = {};
+
 schema.Language = {
 	type: 'object',
 	additionalProperties: false,
@@ -46,6 +48,7 @@ schema.Language = {
 		}
 	}
 };
+
 schema.Geo = {
 	type: 'object',
 	additionalProperties: false,
@@ -78,6 +81,7 @@ schema.Geo = {
 		}
 	}
 };
+
 schema.Currency = {
 	type: 'object',
 	additionalProperties: false,
@@ -110,6 +114,7 @@ schema.Currency = {
 		}
 	}
 };
+
 schema.Role = {
 	type: 'object',
 	additionalProperties: false,
@@ -144,6 +149,7 @@ schema.Role = {
 		}
 	}
 };
+
 schema.Group = {
 	type: 'object',
 	additionalProperties: false,
@@ -170,6 +176,7 @@ schema.Group = {
 		}
 	}
 };
+
 UserEntity = {
 	type: 'object',
 	properties: {
@@ -189,6 +196,7 @@ UserEntity = {
 			items: {
 				type: 'string',
 				"enum": function(value, callback) {
+                    // TODO: only allow roles which exists in parent user
 					return this.Role.get(value, function(err, result) {
 						return callback(!result, result);
 					});
@@ -244,6 +252,7 @@ UserEntity = {
 		})
 	}
 };
+
 schema.User = {
 	type: 'object',
 	properties: {
@@ -272,6 +281,7 @@ schema.User = {
 		}
 	}
 };
+
 schema.UserSelf = {
 	type: 'object',
 	properties: {
@@ -287,4 +297,5 @@ schema.UserSelf = {
 		secret: UserEntity.properties.secret
 	}
 };
+
 module.exports = schema;
