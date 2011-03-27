@@ -13,6 +13,18 @@ parseUrl = require('url').parse
 mongo = require 'mongodb'
 events = require 'events'
 
+
+#
+#
+# MAJOR FIXME: context is so far used for
+# 1. holding uid via context.user.id
+# 2. in add: for holding user parents
+# 3. in add/update: for setting validate `this` to allow validate to snoop into DB model
+#
+# HOW TO GET RID OF THAT?
+#
+#
+
 class Database extends events.EventEmitter
 
 	constructor: (options = {}, definitions, callback) ->
@@ -30,9 +42,14 @@ class Database extends events.EventEmitter
 		# primary key factory
 		@idFactory = () -> (new mongo.BSONPure.ObjectID).toHexString()
 		# attribute to be used to mark document as deleted
-		# N.B. it allows for 3 additional methods: delete/undelete/purge
+		# N.B. introduce a helper attribute which allows to deactivate records
+        # effectively switching them off query/update/remove operations
+        # 3 additional methods added: delete to deactivate;
+        # undelete to reactivate
+        # purge to physically remove deactivated records
 		@attrInactive = options.attrInactive #'_deleted'
 		# support cache
+        # FIXME: way naive implementation
 		@cached = false #options.cached isnt false
 		# DB connection
 		@db = new mongo.Db name or 'test', new mongo.Server(host or '127.0.0.1', port or 27017) #, native_parser: true
@@ -40,7 +57,7 @@ class Database extends events.EventEmitter
 		@open definitions, callback if definitions
 
 	###########
-	# N.B. all methods should return undefined, to prevent leak of private info
+	# N.B. all the methods should return undefined, to prevent leak of private info
 	###########
 
 	#
@@ -57,6 +74,7 @@ class Database extends events.EventEmitter
 				self.db.authenticate username, password, (err, result) ->
 					return callback? err.message if err
 					self.register collections, callback
+					return
 			else
 				return callback? err.message if err
 				self.register collections, callback
@@ -72,7 +90,7 @@ class Database extends events.EventEmitter
 					# TODO: may init indexes here
 					# ...
 					# model
-					store = self.Entity name, definition
+					store = self.getModel name, definition
 					# extend the store
 					if definition?.prototype
 						for own k, v of definition.prototype
@@ -93,15 +111,17 @@ class Database extends events.EventEmitter
 		return
 
 	#
-	# return the list of documents matching `query`; attributes are filtered by optional `schema`
+	# return the list of documents matching `query`
+    # N.B. attributes are filtered by optional `schema`
 	#
 	query: (collection, schema, context, query, callback) ->
 		#console.log 'FIND??', query, @attrInactive
 		query = _.rql(query)
-		# skip documents marked as deleted
+		# skip inactive documents
 		if @attrInactive
 			query = query.ne(@attrInactive,true)
 		# fill the cache
+        # TODO: reconsider!
 		if @cached
 			self = @
 			if self.cache[collection]
@@ -148,6 +168,8 @@ class Database extends events.EventEmitter
 							_.validate doc, schema, veto: true, removeAdditionalProps: !schema.additionalProperties, flavor: 'get'
 					docs = _.map docs, _.values if query.meta.values
 					callback? null, docs
+					return
+				return
 		return
 
 	#
@@ -156,27 +178,33 @@ class Database extends events.EventEmitter
 	#
 	get: (collection, schema, context, id, callback) ->
 		query = _.rql('limit(1)').eq('id',id)
-		# N.B. if id is array -- what to do?
+		# FIXME: if id is array -- what to do? I guess nothing
 		@query collection, schema, context, query, (err, result) ->
 			if callback
 				if err
 					callback err.message
 				else
 					callback null, result[0] or null
+			return
 		return
 
 	#
 	# generate query to filter only documents owned by the context user or his subordinates
 	#
 	owned: (context, query) ->
-		if context?.user?.id then _.rql(query).eq('_meta.history.0.who', context?.user?.id) else _.rql(query)
+		uid = context and context.user and context.user.id
+		if uid
+			# check if the context user listed in document creators
+			_.rql(query).eq('_meta.history.0.who', uid)
+		else
+			_.rql(query)
 
 	#
 	# insert new `document` validated by optional `schema`
 	#
 	add: (collection, schema, context, document = {}, callback) ->
 		self = @
-		user = context?.user?.id
+		uid = context and context.user and context.user.id
 		# assign new primary key unless specified
 		# FIXME: what if id is required?
 		#document.id = @idFactory() unless document.id
@@ -188,6 +216,7 @@ class Database extends events.EventEmitter
 					_.validate.call context, document, schema, {veto: true, removeAdditionalProps: not schema.additionalProperties, flavor: 'add', coerce: true}, next
 				else
 					next null, document
+				return
 			(err, document, next) ->
 				#console.error 'ADDVALIDATED', arguments
 				return next err if err
@@ -197,7 +226,7 @@ class Database extends events.EventEmitter
 				# add history line
 				#console.log 'CREATOR', user, context?.user?._meta?.history?[0].who
 				parents = context?.user?._meta?.history?[0].who or []
-				parents.unshift user
+				parents.unshift uid
 				document._meta =
 					history: [
 						who: parents
@@ -206,6 +235,7 @@ class Database extends events.EventEmitter
 					]
 				# do add
 				@collections[collection].insert document, {safe: true}, next
+				return
 			(err, result, next) ->
 				#console.error 'ADD', arguments
 				if err
@@ -214,7 +244,7 @@ class Database extends events.EventEmitter
 					callback? err
 					#self.emit 'add',
 					#	collection: collection
-					#	user: user
+					#	user: uid
 					#	error: err
 				else
 					result = result[0]
@@ -228,8 +258,9 @@ class Database extends events.EventEmitter
 					callback? null, result
 					#self.emit 'add',
 					#	collection: collection
-					#	user: user
+					#	user: uid
 					#	result: result
+				return
 		return
 
 	#
@@ -237,7 +268,7 @@ class Database extends events.EventEmitter
 	#
 	update: (collection, schema, context, query, changes = {}, callback) ->
 		self = @
-		user = context?.user?.id
+		uid = context and context.user and context.user.id
 		# atomize the query
 		query = _.rql(query).toMongo()
 		query.search.$atomic = 1
@@ -249,13 +280,14 @@ class Database extends events.EventEmitter
 					_.validate.call context, changes, schema, {veto: true, removeAdditionalProps: !schema.additionalProperties, existingOnly: true, flavor: 'update', coerce: true}, next
 				else
 					next null, changes
+				return
 			(err, changes, next) ->
 				#console.log 'BEFOREUPDATEVALIDATED', arguments
 				# N.B. we inhibit empty changes
 				return next err if err or not _.size changes
 				# add history line
 				history =
-					who: user
+					who: uid
 					when: Date.now()
 				delete changes._meta
 				history.what = changes
@@ -267,17 +299,19 @@ class Database extends events.EventEmitter
 					changes.$push = '_meta.history': history
 				# do multi update
 				@collections[collection].update query.search, changes, {multi: true}, next
+				return
 			(err, result) ->
 				# invalidate cache
 				@cache[collection] = null if @cached
 				callback? err?.message or err
 				#self.emit 'update',
 				#	collection: collection
-				#	user: user
+				#	user: uid
 				#	search: query.search
 				#	changes: changes
 				#	err: err?.message or err
 				#	result: result
+				return
 		return
 
 	#
@@ -285,7 +319,7 @@ class Database extends events.EventEmitter
 	#
 	remove: (collection, context, query, callback) ->
 		self = @
-		user = context?.user?.id
+		uid = context and context.user and context.user.id
 		query = _.rql(query).toMongo()
 		# naive fuser
 		return callback? 'Refuse to remove all documents w/o conditions' unless _.size query.search
@@ -295,9 +329,10 @@ class Database extends events.EventEmitter
 			callback? err?.message
 			#self.emit 'remove',
 			#	collection: collection
-			#	user: user
+			#	user: uid
 			#	search: query.search
 			#	error: err?.message
+			return
 		return
 
 	#
@@ -342,10 +377,18 @@ class Database extends events.EventEmitter
 		return
 
 	#
-	# Entity -- set of DB accessor methods for a particular collection,
-	#			bound to the db and the collection and optional schema
+	# return model -- set of DB accessor methods for a particular collection,
+	# bound to the db and the collection and optional schema
 	#
-	Entity: (entity, schema) ->
+
+	#
+	#
+	#
+	#
+	#
+	#
+
+	getModel: (entity, schema) ->
 		##@register [entity] # N.B. don't wait
 		db = @
 		# compose the store

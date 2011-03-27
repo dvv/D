@@ -9,13 +9,6 @@
 var Middleware = require('../lib');
 
 //
-// plugin RQL
-// N.B. this implicitly globalizes documentcloud/underscore as basis for database accessors
-//
-var Db = require('../lib/db');
-_.traverse = require('traverse');
-
-//
 // config
 //
 var config = require('./config');
@@ -45,7 +38,7 @@ if (server) {
 		// setup DB model
 		//
 		function(err, result, next){
-			new Db(config.database.url, require('./schema'), next);
+			new Middleware.Database(config.database.url, require('./schema'), next);
 		},
 		//
 		// define application
@@ -109,16 +102,17 @@ if (server) {
 				// serve static stuff under ./public
 				Middleware.static('/', __dirname + '/public', null, {
 					//cacheMaxFileSizeToCache: 1024, // set to limit the size of cacheable file
-				}),
+				})
 
 				// workaround since we are not connect/express ;)
 				//
 				// TODO: ping developers!
 				//
-				require('dnode/lib/web.js').route('/dnode.js')
+				//require('dnode/lib/web.js').route('/dnode.js')
 
 			));
 
+			/***
 			//
 			// setup DNode
 			//
@@ -192,6 +186,7 @@ if (server) {
 				};
 
 			}).listen(server);
+			***/
 
 		}
 	);

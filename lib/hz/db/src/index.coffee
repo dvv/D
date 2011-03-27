@@ -8,14 +8,14 @@
 ###
 
 #
-# base upon underscore
+# base on underscore
 #
 global._ = require 'underscore'
 
 #
 # plugin bundle of RQL and Schema
 #
-require './data'
+require './underscore-data'
 
 #
 # expose

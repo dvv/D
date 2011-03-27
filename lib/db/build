@@ -1,3 +1,0 @@
-#!/bin/sh
-coffee -jcp object.coffee rql.coffee schema.coffee >data.js
-coffee -c database.coffee index.coffee

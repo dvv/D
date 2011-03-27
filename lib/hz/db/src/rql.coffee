@@ -360,8 +360,8 @@ _.each ['eq', 'ne', 'le', 'ge', 'lt', 'gt', 'between', 'in', 'nin', 'contains', 
 		@
 
 parse = (query, parameters) ->
-	q = new Query query, parameters
-	return q
+	#q = new Query query, parameters
+	#return q
 	try
 		q = new Query query, parameters
 	catch x
